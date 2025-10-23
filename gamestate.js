@@ -1,13 +1,14 @@
 
 export class GameDef {
     constructor() {
+        console.log('Creating Game definition');
         this.sizeCell = 10;
         this.aLevels =  [
                         {"image": "pic1.png"},
                         {"image": "pic2.png"},
                         {"image": "pic3.png"}
                         ];
-        // Default engine configuration (moved from picxonix.js cfgMain)
+
         this.cfgMain = {
             width: 600,
             height: 400,

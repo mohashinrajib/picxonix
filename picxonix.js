@@ -6,7 +6,7 @@
  */
 // picxonix.js
 import { BonusItem } from './bonus.js';
-import { LevelState } from './gamestate.js';
+import { GameDef, LevelState } from './gamestate.js';
 export function test_function(){
     console.log('Test func called');
 }
@@ -94,10 +94,7 @@ test_function();
         }
         return 0;
     }
-
-    // Use GameDef.cfgMain as the authoritative config. Ensure gd exists and has cfgMain.
-    window.gd = window.gd || { cfgMain: {} };
-    var cfgMain = window.gd.cfgMain;
+    window.gd = window.gd || new GameDef()
     // Initialize level state once (idempotent) so other modules can set it before this script runs
     window.ls = window.ls || new LevelState(0);
     // cell attributes:
@@ -126,16 +123,7 @@ test_function();
     window.ls.aWarders = window.ls.aWarders || [];
     window.ls.nBalls = (typeof window.ls.nBalls === 'number') ? window.ls.nBalls : 0;
     window.ls.nWarders = (typeof window.ls.nWarders === 'number') ? window.ls.nWarders : 0;
-    // Bonus item state
-    // level/runtime state should live on window.gs (GameState). Ensure it exists.
-    window.gs = window.gs || { idFrame:0, tLevel:0, tLastFrame:0, tLocked:0, bCollision:false, bConquer:false };
-    // local aliases for convenience
-    var idFrame = function(val){ if (val===undefined) return window.gs.idFrame; window.gs.idFrame = val; };
-    var tLevel = function(val){ if (val===undefined) return window.gs.tLevel; window.gs.tLevel = val; };
-    var tLastFrame = function(val){ if (val===undefined) return window.gs.tLastFrame; window.gs.tLastFrame = val; };
-    var tLocked = function(val){ if (val===undefined) return window.gs.tLocked; window.gs.tLocked = val; };
-    var bCollision = function(val){ if (val===undefined) return window.gs.bCollision; window.gs.bCollision = val; };
-    var bConquer = function(val){ if (val===undefined) return window.gs.bConquer; window.gs.bConquer = val; };
+
     var dirhash = {
         'left': 180, 'right': 0, 'up': 270, 'down': 90, 'stop': false
     };
@@ -144,15 +132,14 @@ test_function();
     function init(el, opts) {
         if (elContainer || !el || !el.appendChild) return false;
         elContainer = el;
-        // set/modify cfgMain options:
-        merge(cfgMain, opts);
-        if (!cfgMain.sizeCell) return false;
-        sizeCell = cfgMain.sizeCell;
-        if (typeof cfgMain.callback != 'function') cfgMain.callback = null;
+        merge(window.gd.cfgMain, opts);
+        if (!window.gd.cfgMain.sizeCell) return false;
+        sizeCell = window.gd.cfgMain.sizeCell;
+        if (typeof window.gd.cfgMain.callback != 'function') window.gd.cfgMain.callback = null;
         // set/modify window.ls options:
         merge(window.ls, opts);
 
-        setLevelData(cfgMain.width, cfgMain.height);
+        setLevelData(window.gd.cfgMain.width, window.gd.cfgMain.height);
         var oWrap = document.createElement('div');
         oWrap.style.position = 'relative';
         // create background (picture) canvas:
@@ -163,7 +150,7 @@ test_function();
             canvas.height = height;
             canvas.style.position = 'absolute';
             canvas.style.left = canvas.style.top = (2*sizeCell) + 'px';
-            ctxPic.fillStyle = cfgMain.colorTrail;
+            ctxPic.fillStyle = window.gd.cfgMain.colorTrail;
             ctxPic.fillRect(0, 0, width, height);
             oWrap.appendChild(canvas);
         }());
@@ -176,7 +163,7 @@ test_function();
             canvas.style.position = 'absolute';
             canvas.style.left = canvas.style.top = 0;
             fillCanvas();
-            ctxMain.fillStyle = cfgMain.colorFill;
+            ctxMain.fillStyle = window.gd.cfgMain.colorFill;
             ctxMain.fillRect(2*sizeCell, 2*sizeCell, width, height);
             oWrap.appendChild(canvas);
         }());
@@ -191,12 +178,12 @@ test_function();
         ctxTmp.clearRect(0, 0, sizeCell, sizeCell);
         ctxTmp.beginPath();
         ctxTmp.arc(r, r, r, 0, Math.PI * 2, false);
-        ctxTmp.fillStyle = cfgMain.colorBall;
+        ctxTmp.fillStyle = window.gd.cfgMain.colorBall;
         ctxTmp.fill();
-        if (cfgMain.colorBallIn) {
+        if (window.gd.cfgMain.colorBallIn) {
             ctxTmp.beginPath();
             ctxTmp.arc(r, r, q, 0, Math.PI * 2, false);
-            ctxTmp.fillStyle = cfgMain.colorBallIn;
+            ctxTmp.fillStyle = window.gd.cfgMain.colorBallIn;
             ctxTmp.fill();
         }
         imgBall = new Image();
@@ -211,11 +198,11 @@ test_function();
             }
         }
         // prepare warder image:
-        prepareSquare(cfgMain.colorWarder, cfgMain.colorWarderIn);
+        prepareSquare(window.gd.cfgMain.colorWarder, window.gd.cfgMain.colorWarderIn);
         imgWarder = new Image();
         imgWarder.src = ctxTmp.canvas.toDataURL();
         // prepare cursor image:
-        prepareSquare(cfgMain.colorCursor, cfgMain.colorCursorIn);
+        prepareSquare(window.gd.cfgMain.colorCursor, window.gd.cfgMain.colorCursorIn);
         imgCursor = new Image();
         imgCursor.src = ctxTmp.canvas.toDataURL();
         update_status_bar('init')
@@ -270,11 +257,11 @@ function update_status_bar(stage='update') {
 function resetGame(cause) {
     setPlayMode(false);
     endLevel(false);
-    setLevelData(cfgMain.width, cfgMain.height);
+    setLevelData(window.gd.cfgMain.width, window.gd.cfgMain.height);
     ctxMain.canvas.width = width+ 4*sizeCell;
     ctxMain.canvas.height = height+ 4*sizeCell;
     fillCanvas();
-    ctxMain.fillStyle = cfgMain.colorFill;
+    ctxMain.fillStyle = window.gd.cfgMain.colorFill;
     ctxMain.fillRect(2*sizeCell, 2*sizeCell, width, height);
     ctxPic.canvas.width = width;
     ctxPic.canvas.height = height;
@@ -294,7 +281,7 @@ function resetGame(cause) {
         ctxPic.canvas.width = width;
         ctxPic.canvas.height = height;
         ctxPic.drawImage(imgPic, 0, 0, width, height, 0, 0, width, height);
-        cfgMain.callback && cfgMain.callback(3);
+        window.gd.cfgMain.callback && window.gd.cfgMain.callback(3);
         if (data.disabled) {
             endLevel(true); return;
         }
@@ -311,17 +298,17 @@ function resetGame(cause) {
         for (i = 0; i < window.ls.nWarders; i++)
             window.ls.aWarders.push(new Enemy(aPos[i][0], aPos[i][1], true, 45));
         window.stageData.bonus = BonusItem.random(5, 5, cellset.nW-5, cellset.nH-5, 'killward')
-        tLevel = Date.now();
-        tLastFrame = 0;
+        window.gs.tLevel = Date.now();
+        window.gs.tLastFrame = 0;
         startLoop();
     }
 
 
     function endLevel(bClear) {
         endLoop();  // Stop the animation loop
-        tLevel = 0;
-        tLastFrame = 0;  // ADD THIS LINE - Reset frame tracker
-        bCollision = false;  // ADD THIS LINE - Reset collision flag
+        window.gs.tLevel = 0;
+        window.gs.tLastFrame = 0;  // ADD THIS LINE - Reset frame tracker
+        window.gs.bCollision = false;  // ADD THIS LINE - Reset collision flag
         if (!bClear) return;
         fillCanvas();
         ctxMain.clearRect(2*sizeCell, 2*sizeCell, width, height);
@@ -335,17 +322,17 @@ function resetGame(cause) {
     }
 
     function setPlayMode(bOn) {
-        if (bOn ^ !tLastFrame) return;
-        tLastFrame? endLoop() : startLoop();
+        if (bOn ^ !window.gs.tLastFrame) return;
+        window.gs.tLastFrame? endLoop() : startLoop();
     }
 
     function setDir(key) {
-        if (!tLastFrame) return;
+        if (!window.gs.tLastFrame) return;
         if (key in dirhash) cursor.setDir(dirhash[key]);
     }
 
     function setDirToward(pos) {
-        if (!tLastFrame || !pos || pos.length < 2) return;
+        if (!window.gs.tLastFrame || !pos || pos.length < 2) return;
         var xc = Math.floor(pos[0] / sizeCell) - 2,
             yc = Math.floor(pos[1] / sizeCell) - 2;
         var b = cellset.isPosValid(xc, yc);
@@ -397,12 +384,12 @@ function resetGame(cause) {
             render();
             window.gs.tLastFrame = now;
         }
-        if (bCollision) {
+        if (window.gs.bCollision) {
             lock();
-            cfgMain.callback && cfgMain.callback(1);
+            window.gd.cfgMain.callback && window.gd.cfgMain.callback(1);
             return;
         }
-        if (bConquer) {
+        if (window.gs.bConquer) {
             window.gs.bConquer = false;
             window.gs.tLastFrame = 0;
             const points_check = [[window.stageData.bonus.x, window.stageData.bonus.y ]];
@@ -411,11 +398,11 @@ function resetGame(cause) {
                 window.stageData.bonus.active = false
                 console.log('----- Bonus conquered area, removed.')
             }
-            if (cfgMain.callback && cfgMain.callback(2))
+            if (window.gd.cfgMain.callback && window.gd.cfgMain.callback(2))
                 return;
         }
         else
-            cfgMain.callback && cfgMain.callbackOnFrame && cfgMain.callback(0);
+            window.gd.cfgMain.callback && window.gd.cfgMain.callbackOnFrame && window.gd.cfgMain.callback(0);
         startLoop();
     }
 
@@ -436,7 +423,7 @@ function resetGame(cause) {
             //console.log('Checking bonus collision at pos:', cursor.pos(),distCursor, distEnemy)
             var posCr = cursor.pos();
             if (window.stageData.bonus.check_capture(posCr)){
-                window.stageData.bonus.applyBonus(cfgMain,ctxMain);
+                window.stageData.bonus.applyBonus(window.gd.cfgMain,ctxMain);
                 update_status_bar();
             }
 
@@ -450,7 +437,7 @@ function resetGame(cause) {
 
     function render() {
         cellset.render();
-        window.stageData.bonus.render(cfgMain, ctxMain);
+        window.stageData.bonus.render(window.gd.cfgMain, ctxMain);
         cursor.render();
         var i;
         for (i = 0; i < window.ls.nBalls; i++) window.ls.aBalls[i].render();
@@ -458,15 +445,15 @@ function resetGame(cause) {
     }
 
     function lock() {
-        tLastFrame = 0;
-        bCollision = false;
+        window.gs.tLastFrame = 0;
+        window.gs.bCollision = false;
         var posCr = cursor.pos();
         cellset.add2Trail(posCr[0], posCr[1], false);
-        setTimeout(unlock, cfgMain.timeoutCollision);
+        setTimeout(unlock, window.gd.cfgMain.timeoutCollision);
     }
 
     function unlock() {
-        if (!tLevel) return;
+        if (!window.gs.tLevel) return;
         cellset.clearTrail();
         var pos = cellset.placeCursor();
         cursor.reset(pos[0], pos[1], true);
@@ -477,7 +464,7 @@ function resetGame(cause) {
     }
 
     function spawn() {
-        if (!tLevel) return;
+        if (!window.gs.tLevel) return;
         var pos = cellset.placeSpawned();
         if (!pos) return;
         window.ls.aWarders.push(new Enemy(pos[0], pos[1], true));
@@ -488,7 +475,7 @@ function resetGame(cause) {
         return {
             width: width+ 4*sizeCell,
             height: height+ 4*sizeCell,
-            play: Boolean(tLastFrame),
+            play: Boolean(window.gs.tLastFrame),
             posCursor: cursor.pos(),
             warders: window.ls.nWarders,
             speedCursor: window.gs.speedCursor,
@@ -519,7 +506,7 @@ function resetGame(cause) {
     }
 
     function fillCanvas() {
-        ctxMain.fillStyle = cfgMain.colorBorder;
+        ctxMain.fillStyle = window.gd.cfgMain.colorBorder;
         ctxMain.fillRect(0, 0, width+ 4*sizeCell, height+ 4*sizeCell);
     }
 
@@ -589,12 +576,12 @@ function resetGame(cause) {
             this.aTrail = [];
             this.aTrailNodes = [];
             this.aTrailRects = [];
-            fillCellArea(cfgMain.colorFill, 0, 0, nW, nH);
+            fillCellArea(window.gd.cfgMain.colorFill, 0, 0, nW, nH);
         },
         render: function() {
             if (this.aTrailRects.length) {
                 for (var i = this.aTrailRects.length-1; i >= 0; i--) {
-                    fillCellArea.apply(null, [cfgMain.colorFill].concat(this.aTrailRects[i]));
+                    fillCellArea.apply(null, [window.gd.cfgMain.colorFill].concat(this.aTrailRects[i]));
                 }
                 this.aTrailRects = [];
             }
@@ -1071,7 +1058,7 @@ function resetGame(cause) {
                 }
                 x += vecX; y += vecY;
                 if (cellset.value(x, y) & CA_TRAIL) {
-                    bCollision = true; break;
+                    window.gs.bCollision = true; break;
                 }
                 var b = cellset.value(x, y) & CA_CLEAR;
                 if (this.state && b) {
@@ -1084,27 +1071,27 @@ function resetGame(cause) {
             this.y = y;
             if (!bEnd) return;
             if (cellset.getPreTrailCell() == cellset.index(x,y))
-                bCollision = true;
+                window.gs.bCollision = true;
             else {
                 this.dir = this.state = false;
-                bConquer = true;
+                window.gs.bConquer = true;
             }
         },
         // render current position:
         render: function() {
             if (this.x0 == this.x && this.y0 == this.y) {
-                if (tLastFrame) return;
+                if (window.gs.tLastFrame) return;
             }
             else {
                 if (this.state0) {
                     var rect = cellset.lastTrailLine();
-                    fillCellArea.apply(null, [cfgMain.colorTrail].concat(rect));
+                    fillCellArea.apply(null, [window.gd.cfgMain.colorTrail].concat(rect));
                 }
                 else {
                     if (cellset.isPosIn(this.x0, this.y0))
                         clearCellArea(this.x0, this.y0);
                     else
-                        fillCellArea(cfgMain.colorBorder, this.x0, this.y0);
+                        fillCellArea(window.gd.cfgMain.colorBorder, this.x0, this.y0);
                 }
                 this.x0 = this.x; this.y0 = this.y;
             }
@@ -1155,13 +1142,13 @@ function resetGame(cause) {
         // render current position:
         render: function() {
             if (this.x0 == this.x && this.y0 == this.y) {
-                if (tLastFrame) return;
+                if (window.gs.tLastFrame) return;
             }
             else {
                 if (this.type && cellset.isPosIn(this.x0, this.y0))
                     clearCellArea(this.x0, this.y0);
                 else
-                    fillCellArea(this.type? cfgMain.colorBorder : cfgMain.colorFill, this.x0, this.y0);
+                    fillCellArea(this.type? window.gd.cfgMain.colorBorder : window.gd.cfgMain.colorFill, this.x0, this.y0);
                 this.x0 = this.x; this.y0 = this.y;
             }
             drawCellImg(this.type? imgWarder : imgBall, this.x, this.y);
@@ -1170,7 +1157,7 @@ function resetGame(cause) {
             if (cellset.isPosIn(this.x, this.y))
                 clearCellArea(this.x, this.y);
             else
-                fillCellArea(this.type? cfgMain.colorBorder : cfgMain.colorFill, this.x, this.y);
+                fillCellArea(this.type? window.gd.cfgMain.colorBorder : window.gd.cfgMain.colorFill, this.x, this.y);
         },
         // current position:
         pos: function() {
@@ -1184,28 +1171,28 @@ function resetGame(cause) {
                 vC = cellset.value(xC, yC), bC = !this.type ^ vC & CA_CLEAR;
             if (
                 bC &&
-                (cfgMain.collisionAdjacent
+                (window.gd.cfgMain.collisionAdjacent
                     ? Math.abs(x - xC) <= 1 && Math.abs(y - yC) <= 1
                     : x === xC && y === yC) ||
                 (!this.type && this._isCollision(x, y, dir))
                 ) {
-                bCollision = true;
+                window.gs.bCollision = true;
                 }
 
-            for (var n = 0; n < dist && !bCollision; n++) {
+            for (var n = 0; n < dist && !window.gs.bCollision; n++) {
                 var xt = x + vecX, yt = y + vecY;
                 var dirB = this._calcBounce(x, y, dir, xt, yt);
                 if (dirB !== false)
                     return this._calcPath(x, y, dist - n, dirB);
                 if (
                     bC && (
-                        cfgMain.collisionAdjacent
+                        window.gd.cfgMain.collisionAdjacent
                             ? Math.abs(xt - xC) <= 1 && Math.abs(yt - yC) <= 1
                             : xt === xC && yt === yC
                     ) ||
                     (!this.type && this._isCollision(xt, yt, dir))
                 ) {
-                    bCollision = true;
+                    window.gs.bCollision = true;
                 }
 
                 if (!this.type && !cellset.isPosIn(xt, yt))
@@ -1228,7 +1215,7 @@ function resetGame(cause) {
        _isCollision: function(x, y, dir) {
             if (cellset.value(x, y) & CA_TRAIL) return true;
 
-            if (!cfgMain.collisionAdjacent) return false;
+            if (!window.gd.cfgMain.collisionAdjacent) return false;
 
             // Adjacent-cell check only if enabled
             var aDirs = [-45, 45, -90, 90];
