@@ -9,35 +9,29 @@ $(function() {
     var $gameStatusText = $('#game-status-text');
     var $statusProgressCurrent = $('#status-progress-current');
     pix.test_function()
-    var size = window.picxonix(elCanvas[0], {
-        width: 600,
-        height: 500,
-        callback: function(iEvent) {
-            switch (iEvent) {
-                case 0: // animation frame
-                    return updateTime();
-                case 1: // collision
-                    return raiseFaults();
-                case 2: // conquer
-                    return raiseConquer();
-                default:
-            }
-        },
-        callbackOnFrame: true
-    });
-    if (!size) return;
+    function initUI(el){
+        console.log('initUI Must be called once');
+        window.var_oWrap = document.createElement('div');
+        window.var_oWrap.style.position = 'relative';
+        el.appendChild(window.var_oWrap);
+        console.log('oWrapAdded, number of child:', el.childElementCount);
 
-    var w = size.width, h = size.height;
-    elCanvas.css({width: w, height: h});
+    }
+    initUI(elCanvas[0]);
+    // var size = window.picxonix('init',elCanvas[0]);
+    // if (!size) return;
+
+    // var w = size.width, h = size.height;
+    // elCanvas.css({width: w, height: h});
 
 
-    window.gd = new GameDef();
-    // Create global instance
-    window.gs = new GameState(window.gd);
+    // window.gd = new GameDef();
+    // // Create global instance
+    // window.gs = new GameState(window.gd);
 
-    $('#status-progress-total').html(window.gs.nLevels);
-    window.gs.elTime = $('#status-time');
-    preloadLevel();
+
+    $('#status-progress-total').html(0);
+    // preloadLevel();
 
     var keyHash = {37: 'left', 39: 'right', 38: 'up', 40: 'down', 32: 'stop'};
     $(document).keydown(function(e) {
@@ -149,30 +143,59 @@ $(function() {
     $playBtn.prop('disabled', true).hide();
     $gameStatusText.show();
 
-        if (!window.gs.bStarted)
-            $('.my-panel').removeClass('hidden');
+    if (!window.gs.bStarted)
+        $('.my-panel').removeClass('hidden');
 
 
-        window.gs.bStarted = true;
-        window.gs.bPlay = true;
-        window.gs.bConquer = false;
-        window.gs.bCollision = false;
-
-        window.gs.iLevel++;
-    console.log('Incremented iLevel to', window.gs.iLevel);
+    window.gs.bStarted = true;
+    window.gs.bPlay = true;
+    window.gs.bConquer = false;
+    window.gs.bCollision = false;
     $statusProgressCurrent.html(window.gs.iLevel);
 
         // Create a copy of window.gs.oLevel with the full image path for picxonix
         var levelData = {
-            image: 'pics/' + window.gs.oLevel.image
+            image: 'pics/pic' + window.gs.oLevel + '.png'
         };
         picxonix('level', levelData);
         window.gs.tLevel = Date.now();
         window.gs.nTimeLevel = 0;
     }
+    window.fn_update = function(dt) {
+        // Accumulate fractional movement
+        if (window.cursor.dir === false){
+            window.var_cursorMoveRemainder = 0
+        }else{
+            window.var_cursorMoveRemainder += dt * (window.gs.speedCursor + window.gs.speedBonus);
+        }
 
+        window.var_enemyMoveRemainder += dt * ( Math.min(window.ls.speedEnemy - window.ls.speedEnemyReduce));
+        var distCursor = Math.floor(window.var_cursorMoveRemainder);
+        var distEnemy = Math.floor(window.var_enemyMoveRemainder);
+        window.var_cursorMoveRemainder -= distCursor;
+        window.var_enemyMoveRemainder -= distEnemy;
 
-    function updateTime() {
+        // console.log('dt:', dt.toFixed(3),'eSpeed', window.ls.speedEnemy, 'distCursor:', distCursor, 'distEnemy:', distEnemy);
+        if (!(distCursor >= 1 || distEnemy >= 1)) return false;
+            window.cursor.update(distCursor);
+            // Bonus item collision check
+            if (window.stageData.bonus.active && distCursor >= 1){
+                //console.log('Checking bonus collision at pos:', window.cursor.pos(),distCursor, distEnemy)
+                var posCr = window.cursor.pos();
+                if (window.stageData.bonus.check_capture(posCr)){
+                    window.stageData.bonus.applyBonus(window.gd.cfgMain,window.gs.ctxMain);
+                    window.update_status_bar();
+                }
+
+            }
+
+            var i;
+            for (i = 0; i < window.ls.nBalls; i++) window.ls.aBalls[i].update(distEnemy);
+            for (i = 0; i < window.ls.nWarders; i++) window.ls.aWarders[i].update(distEnemy);
+            return true;
+        }
+
+    window.fn_updateTime = function() {
         var n = Math.floor((Date.now() - window.gs.tLevel) / 1000);
         if (n - window.gs.nTimeLevel < 1) return;
         window.gs.nTimeLevel = n;
@@ -181,14 +204,13 @@ $(function() {
         }
         n = window.gs.nTimeLevel + window.gs.nTimeTotal;
         var nm = String(Math.floor(n / 60)), ns = String(n % 60);
-        window.gs.elTime.html(str_pad(nm)+':'+str_pad(ns));
+        $('#status-time').html(str_pad(nm)+':'+str_pad(ns));
     }
 
-    function raiseFaults() {
+    window.afterFault = function() {
         window.gs.nFaults -= 1
         $('#banner').html('Oops..');
-        picxonix('statusUpdate','update')
-
+        window.update_status_bar('update');
         if (window.gs.nFaults > 0) return;
 
         // Stop the game properly
@@ -212,23 +234,16 @@ $(function() {
 
     },1000)
 }
+
     function newGame(origin){
-        window.gs.iLevel = 0;
-
-        console.log('=== NEW GAME ==='+origin);
-        window.gs.nTimeTotal = 0;
-        picxonix('setFaults', 3);
-
-        window.ls = new LevelState(window.gs.iLevel)
+        console.log('=== NEW GAME request==='+origin);
+        picxonix('newgame',0)
         if(origin == 'congrats'){
             $('#banner').html('CONGRATULATIONS !!!');
-        }else
+        }else if (origin == 'quit')
         {
             $('#banner').html('START TO PLAY');
             picxonix('quit')
-        }
-        if(origin == 'button'){
-
             $('#game-status-text').hide();
             $('#play-btn').html('<span class="glyphicon glyphicon-play"></span> Play')
                 .off('click').on('click', function(e) {
@@ -240,18 +255,13 @@ $(function() {
     }
 
 
-    function raiseConquer() {
-        var data = picxonix('state');
-        if (!data) return false;
-        window.gs.bConquer = true;
-        var val = data.cleared;
-        // update val on span 0 decimal place
-        $('#status-points').html(val.toFixed(0)+'%');
-        var new_area = val- window.stageData.cum_area
+    window.fn_postConquer = function(cleared_area, cleared_thr) {
+        $('#status-points').html(cleared_area.toFixed(0)+'%');
+        var new_area = cleared_area- window.stageData.cum_area
         window.gs.score+=new_area
-        window.stageData.cum_area = val
-        picxonix('statusUpdate','conquer');
-        if (val < 75) return false;
+        window.stageData.cum_area = cleared_area
+        window.update_status_bar('conquer');
+        if (cleared_area < cleared_thr) return false;
 
         // Level Complete procedure
          if (window.gs.iLevel < window.gs.nLevels){
