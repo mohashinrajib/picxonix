@@ -46,15 +46,29 @@ export class LevelState{
     constructor(iLevel) {
         this.iLevel = iLevel;
         this.nBalls = 1;
-        this.nWarders = 3;
-        this.target_area = 75;
+        this.nWarders = 1;
+        this.target_area = 50;
         this.speedEnemy = 10;
         this.speedEnemyReduce = 0;
         this.ignoreCollisionBonus = false;
         this.aBalls = [];
         this.aWarders = [];
+
+        };
+        get_image(onload, onerror){
+            var img = new Image();
+            img.onload = onload ;
+            img.onerror = onerror;
+            img.src = 'pics/pic' + this.iLevel + '.png';
+            return img;}
+        loadImgwithLevel(){
+            var img = new Image();
+            img.onload = function(){window.gs.applyLevel(img)} ;
+            img.onerror = function(){console.log('Error loading Image')};
+            img.src = 'pics/pic' + this.iLevel + '.png';
+        }
     }
-}
+
 
 export class GameState {
     constructor(gamedef) {
@@ -63,7 +77,6 @@ export class GameState {
         this.nLevels = gamedef.aLevels.length;
         this.iLevel = 0;
         this.tLevel = 0;
-        this.oLevel = null;
         this.nTimeLevel = 0;
         this.nTimeTotal = 0;
         this.bStarted = false;
@@ -176,7 +189,7 @@ export class GameState {
 
         window.update_status_bar(cause)
     }
-    applyLevel(img, data) {
+    applyLevel(img) {
         const width = window.gd.cfgMain.width;
         const height = window.gd.cfgMain.height;
         const sizeCell = window.gd.cfgMain.sizeCell;
@@ -192,11 +205,11 @@ export class GameState {
         this.ctxPic.canvas.height = height;
         this.ctxPic.drawImage(imgPic, 0, 0, width, height, 0, 0, width, height);
         // window.gd.cfgMain.callback && window.gd.cfgMain.callback(3);
-        if (data.disabled) {
-            endLevel(true); return;
-        }
-        if ('shuffle' in data)
-            shuffleImage(data.shuffle);
+        // if (data.disabled) {
+        //     endLevel(true); return;
+        // }
+        // if ('shuffle' in data)
+        //     shuffleImage(data.shuffle);
         var pos = window.cellset.placeCursor();
         window.cursor.reset(pos[0], pos[1]);
         window.ls.aBalls = []; window.ls.aWarders = [];
@@ -207,7 +220,7 @@ export class GameState {
         aPos = window.cellset.placeWarders(window.ls.nWarders);
         for (i = 0; i < window.ls.nWarders; i++)
             window.ls.aWarders.push(new Enemy(aPos[i][0], aPos[i][1], true, 45));
-        window.stageData.bonus = BonusItem.random(5, 5, window.cellset.nW-5, window.cellset.nH-5, 'killward')
+        window.stageData.bonus = BonusItem.random(5, 5, window.cellset.nW-5, window.cellset.nH-5, 'freez')
         window.gs.tLevel = Date.now();
         window.gs.tLastFrame = 0;
         this.startLoop();
@@ -222,9 +235,44 @@ export class GameState {
         window.gs.tLevel = 0;
         window.gs.tLastFrame = 0;  // ADD THIS LINE - Reset frame tracker
         window.gs.bCollision = false;  // ADD THIS LINE - Reset collision flag
+
+        window.gs.nTimeTotal += window.gs.nTimeLevel;
         if (!bClear) return;
-        window.gs.fillCanvas();
-        window.gs.ctxMain.clearRect(2*sizeCell, 2*sizeCell, width, height);
+        setTimeout(function() {
+            // Animate clearing the play area with a left-to-right sliding curtain over 2 seconds
+            // Cancel any previous clear animation
+            if (window.gs._clearAnimId) cancelAnimationFrame(window.gs._clearAnimId);
+            const ctx = window.gs.ctxMain;
+            const minmax = window.cellset.getMinxMaxx()
+            const startX = minmax[0]*sizeCell
+            const endX = minmax[1]*sizeCell
+            const totalW = endX-startX;
+            const totalH = height;
+            const duration = 2000; // milliseconds
+            const startTime = performance.now();
+
+            function step(now) {
+                const elapsed = now - startTime;
+                const t = Math.min(1, elapsed / duration);
+                const sweep = Math.ceil(totalW * t);
+
+                // Clear the swept area from the left edge up to current sweep width
+                ctx.clearRect(2*sizeCell+startX, 2*sizeCell, sweep, totalH);
+
+                if (t < 1) {
+                    window.gs._clearAnimId = requestAnimationFrame(step);
+                } else {
+                    // Ensure fully cleared and clear the anim id
+                    ctx.clearRect(2*sizeCell, 2*sizeCell, width, height);
+                    window.gs._clearAnimId = 0;
+                }
+            }
+
+            window.gs._clearAnimId = requestAnimationFrame(step);
+            window.postLevelComplete();
+        }, 700);
+
+
     }
 
     setLevelData(w, h) {

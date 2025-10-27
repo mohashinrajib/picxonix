@@ -5,6 +5,7 @@ export class CellSet {
         this.nH = 0; // height of image in cells
         this.nWx = 0; // width of grid in cells
         this.nConquered = 0; // number of conquered cells
+        // this.allConqueredRect = [];
         this.dirTrail = 0; // last direction of the cursor trail (movement)
         this.cellPreTrail = 0; // index of cell preceding the cursor trail cells
         this.aCells = []; // array mapping cell index in the grid to a value indicating type of this cell
@@ -226,11 +227,33 @@ export class CellSet {
         }
         for (i = 0; i < n; i++) {
             window.gs.clearCellArea(...aConqRects[i]);
+            // this.allConqueredRect.push(aConqRects[i]);
         }
         aConqRects = [];
         return pointsInside;
     }
-
+    getMinxMaxx(){
+        // Return minimum and maximum x (inclusive) for columns that contain
+        // at least one unconquered cell. If all cells are conquered return null.
+        //
+        // This scans columns x=0..nW-1 and checks rows y=0..nH-1 for any cell
+        // where the CA_CLEAR bit is NOT set (i.e. unconquered).
+        var minX = -1, maxX = -1;
+        for (var x = 0; x < this.nW; x++) {
+            var colHasUnconquered = false;
+            for (var y = 0; y < this.nH; y++) {
+                if (!(this.value(x, y) & window.CA_CLEAR)) { // unconquered
+                    colHasUnconquered = true;
+                    break;
+                }
+            }
+            if (colHasUnconquered) {
+                if (minX === -1) minX = x;
+                maxX = x;
+            }
+        }
+        return minX === -1 ? null : [minX, maxX];
+    }
     getConqueredRatio() {
         return this.nConquered / (this.nW * this.nH) * 100;
     }

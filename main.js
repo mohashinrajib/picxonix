@@ -50,7 +50,7 @@ $(function() {
         if (key == 81 || key == 113) { // Q or q
             if (window.gs.bStarted || window.gs.bPlay) {
                 e.preventDefault();
-                quitGame();
+                quitPressed();
             }
             return;
         }
@@ -80,12 +80,12 @@ $(function() {
 
     $playBtn.show().click(function(e) {
         e.preventDefault();
-        newGame('button')
+        newGameHomeScreen('button')
         startLevel();
     });
 
 
-    function quitGame() {
+    function quitPressed() {
         if (window.gs.bPlay || window.gs.bStarted) {
             picxonix('end', false);
             picxonix('quit'); // Ensure full reset of game state
@@ -97,11 +97,12 @@ $(function() {
        // nTimeTotal = 0;
        // show play button again
         $gameStatusText.hide();
+        console.log($('#play-btn').text());
         $playBtn.prop('disabled', false).show()
-           .html('<span class="glyphicon glyphicon-repeat"></span> Play Again')
+           .html('<span class="glyphicon glyphicon-repeat"></span> Try Again')
             .off('click').on('click', function(e) {
                 e.preventDefault();
-                newGame();
+                newGameHomeScreen();
                 startLevel();
             });
         preloadLevel(); // This will load the first level (index 0)
@@ -110,57 +111,49 @@ $(function() {
     function preloadLevel() {
         if (window.gs.iLevel >= window.gs.nLevels) {
             // All levels completed - this shouldn't happen here anymore
-            window.gs.oLevel = null;
+            window.gs.iLevel = 0;
             return;
         }
-        window.gs.oLevel = window.gd.aLevels[window.gs.iLevel];
 
-        var img = new Image();
-        img.onload = function() {
-            $playBtn.prop('disabled', false);
-        };
-        img.onerror = function() {
-            console.error('Failed to load image:', 'pics/' + window.gs.oLevel.image);
-            $playBtn.prop('disabled', false); // Enable button even if image fails
-        };
+        var img = window.ls.get_image(function() {$playBtn.prop('disabled', false);},
+                function() {
+                    console.error('Failed to load image:', 'pics/' + window.gs.iLevel);
+                    $playBtn.prop('disabled', false); // Enable button even if image fails
+            })
 
-        // Check if image is already cached
-        img.src = 'pics/' + window.gs.oLevel.image;
-        if (img.complete) {
-            $playBtn.prop('disabled', false);
-        } else {
-            $playBtn.prop('disabled', true);
-        }
+        // )
+        // if (img.complete) {
+        //     $playBtn.prop('disabled', false);
+        // } else {
+        //     $playBtn.prop('disabled', true);
+        // }
 
         // Don't overwrite window.gs.oLevel.image - keep the original filename
     }
 
     function startLevel() {
-        if (!window.gs.oLevel) return;
+        if(window.ls.iLevel<1)return;
         picxonix('reset'); // Always reset before starting a new level
         console.log('Starting level startLevel fnc', window.gs.iLevel, 'with image');
-    // Update button container to show game running
-    $playBtn.prop('disabled', true).hide();
-    $gameStatusText.show();
+        // Update button container to show game running
+        $playBtn.prop('disabled', true).hide().html('In Progress')
+        $gameStatusText.show();
 
-    if (!window.gs.bStarted)
-        $('.my-panel').removeClass('hidden');
+        if (!window.gs.bStarted)
+            $('.my-panel').removeClass('hidden');
 
 
-    window.gs.bStarted = true;
-    window.gs.bPlay = true;
-    window.gs.bConquer = false;
-    window.gs.bCollision = false;
-    $statusProgressCurrent.html(window.gs.iLevel);
+        window.gs.bStarted = true;
+        window.gs.bPlay = true;
+        window.gs.bConquer = false;
+        window.gs.bCollision = false;
+        $statusProgressCurrent.html(window.gs.iLevel);
 
-        // Create a copy of window.gs.oLevel with the full image path for picxonix
-        var levelData = {
-            image: 'pics/pic' + window.gs.oLevel + '.png'
-        };
-        picxonix('level', levelData);
+        window.loadLevel()
+        $('#banner').html('Go on . . ')
         window.gs.tLevel = Date.now();
         window.gs.nTimeLevel = 0;
-    }
+        }
     window.fn_update = function(dt) {
         // Accumulate fractional movement
         if (window.cursor.dir === false){
@@ -228,30 +221,26 @@ $(function() {
                 .html('<span class="glyphicon glyphicon-play"></span> Play')
                 .off('click').on('click', function(e) {
                     e.preventDefault();
-                    newGame()
+                    newGameHomeScreen()
                     startLevel();
                 });
 
     },1000)
 }
 
-    function newGame(origin){
+    function newGameHomeScreen(origin){
         console.log('=== NEW GAME request==='+origin);
         picxonix('newgame',0)
-        if(origin == 'congrats'){
-            $('#banner').html('CONGRATULATIONS !!!');
-        }else if (origin == 'quit')
-        {
-            $('#banner').html('START TO PLAY');
-            picxonix('quit')
-            $('#game-status-text').hide();
-            $('#play-btn').html('<span class="glyphicon glyphicon-play"></span> Play')
-                .off('click').on('click', function(e) {
-                    e.preventDefault();
-                    startLevel();
-                });
-            preloadLevel();
-        }
+        //$('#banner').html('START TO PLAY');
+        // picxonix('quit')
+        //$('#game-status-text').hide();
+        //$('#play-btn').html('<span class="glyphicon glyphicon-play"></span> Play')
+        //    .off('click').on('click', function(e) {
+        //        e.preventDefault();
+        //        startLevel();
+         //   });
+        // preloadLevel();
+
     }
 
 
@@ -266,23 +255,17 @@ $(function() {
         // Level Complete procedure
          if (window.gs.iLevel < window.gs.nLevels){
             $('#banner').html('Level Complete');
+
         }else{
             $('#banner').html('CONGRATULATIONS !!!');
         }
-        setTimeout(function() {
-            picxonix('end', true);
-            window.gs.nTimeTotal += window.gs.nTimeLevel;
-            handleLevelComplete();
-        }, 1000);
+        window.flashEffect({duration: 50, opacity: 0.9})
+        window.gs.endLevel(true); // This leads to window.postLevelComplete()
+
         return true;
     }
 
-    function enableOptions(bOn) {
-        $('#answeropts > button').prop('disabled', !bOn);
-    }
-
-
-    function handleLevelComplete() {
+    window.postLevelComplete = function() {
         window.gs.bPlay = false;
         window.gs.bStarted = false;
         setTimeout(function() {
@@ -291,10 +274,19 @@ $(function() {
                 preloadLevel();
                 // Update button container to show Next Level button
                 $('#game-status-text').hide();
+                // # check if q is pressed during waiting time
+                if($('#play-btn').text() != 'In Progress'){
+                    console.log('Q pressed before next level animation. Aborting Next level button');
+                    return;
+                }
+
                 $('#play-btn').prop('disabled', false).show()
                     .html('<span class="glyphicon glyphicon-play"></span> Next Level')
                     .off('click').on('click', function(e) {
                         e.preventDefault();
+                        window.gs.iLevel += 1;
+                        window.gs.startLevelStateCells(window.gs.iLevel);
+
                         startLevel();
                     });
             } else {
@@ -306,10 +298,14 @@ $(function() {
                     .html('<span class="glyphicon glyphicon-repeat"></span> Play Again')
                     .off('click').on('click', function(e) {
                         e.preventDefault();
-                        newGame('button')
+                        newGameHomeScreen('button')
+                        startLevel();
                     });
             }
         }, 1500);
+    }
+    function enableOptions(bOn) {
+        $('#answeropts > button').prop('disabled', !bOn);
     }
 
 });

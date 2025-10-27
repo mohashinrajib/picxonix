@@ -19,7 +19,12 @@ export function test_function(){
 test_function();
 
 (function() {
-    var tLast = 0;
+    // Use performance.now() for consistent high-resolution timestamps
+    var getNow = (typeof performance !== 'undefined' && performance.now) 
+        ? performance.now.bind(performance)
+        : Date.now.bind(Date);
+    
+    var lastTime = 0;
     var vendors = ['webkit', 'moz'];
     for(var i = 0; i < vendors.length && !window.requestAnimationFrame; ++i) {
         var v = vendors[i];
@@ -28,11 +33,13 @@ test_function();
             window[v+'CancelRequestAnimationFrame'];
     }
     if (!window.requestAnimationFrame)
-        window.requestAnimationFrame = function(callback, element) {
-            var tNow = Date.now();
-            var dt = Math.max(0, 17 - tNow + tLast);
-            var id = setTimeout(function() { callback(tNow + dt); }, dt);
-            tLast = tNow + dt;
+        window.requestAnimationFrame = function(callback) {
+            var currentTime = getNow();
+            var timeToCall = Math.max(0, 16 - (currentTime - lastTime)); // ~60fps
+            var id = setTimeout(function() { 
+                callback(currentTime + timeToCall);
+            }, timeToCall);
+            lastTime = currentTime + timeToCall;
             return id;
         };
     if (!window.cancelAnimationFrame)
@@ -48,10 +55,6 @@ test_function();
         switch (v1) {
             case 'init':
                 init(v2)
-                break;
-            case 'level': // start new level
-                loadLevel(v2);
-                $('#banner').html('Go on . . ')
                 break;
             case 'quit': // quit game
                 window.gs.resetCanvas('quit');
@@ -98,9 +101,9 @@ test_function();
     function newGameInit(origin){
         window.gd = new GameDef();
         window.gs = new GameState(window.gd);
-        window.gs.oLevel = 1;
-        refresh_canvases()
-        window.gs.startLevelStateCells();
+        init_canvas_container()
+        window.gs.iLevel = 1;
+        window.gs.startLevelStateCells(1);
 
     }
     window.CA_CLEAR = 1 << 0;
@@ -125,18 +128,51 @@ test_function();
     // window.ls.aWarders = window.ls.aWarders || [];
     // window.ls.nBalls = (typeof window.ls.nBalls === 'number') ? window.ls.nBalls : 0;
     // window.ls.nWarders = (typeof window.ls.nWarders === 'number') ? window.ls.nWarders : 0;
+    window.flashEffect = function({ color='white', opacity=1, duration=400, repeat=1 } = {}) {
+        // find div by id flashOverlay.id = 'flash-overlay';
+        const f = document.getElementById('flash-overlay');
+        if (!f) return;
+        f.style.background = color;
+        f.style.transition = `opacity ${duration}ms ease-in-out`;
+        let n = 0;
+        const doFlash = () => {
+            f.style.opacity = opacity;
+            setTimeout(() => { f.style.opacity = 0; }, duration / 2);
+            if (++n < repeat) setTimeout(doFlash, duration);
+        };
+        doFlash();
+    }
 
+    function add_flash_overlay(){
+        const flashOverlay = document.createElement('div');
+        flashOverlay.id = 'flash-overlay';
+        // The canvases are appended with position:absolute, so their parent
+        // (`window.var_oWrap`) may collapse to zero size. Compute explicit
+        // dimensions so the overlay covers the main canvas area.
+        const sizeCell = window.gd && window.gd.cfgMain? window.gd.cfgMain.sizeCell : 10;
+        const mainW = window.gd && window.gd.cfgMain? window.gd.cfgMain.width + 4 * sizeCell : 600 + 4 * sizeCell;
+        const mainH = window.gd && window.gd.cfgMain? window.gd.cfgMain.height + 4 * sizeCell : 400 + 4 * sizeCell;
+        Object.assign(flashOverlay.style, {
+            position: 'absolute',
+            left: '0px',
+            top: '0px',
+            width: mainW + 'px',
+            height: mainH + 'px',
+            background: 'white',
+            opacity: 0,
+            pointerEvents: 'none',
+            zIndex: 9999,
+            transition: 'opacity 0.3s ease-in-out'
+        });
+        window.var_oWrap.appendChild(flashOverlay);
+     }
 
-    function refresh_canvases() {
+    function init_canvas_container() {
         sizeCell = window.gd.cfgMain.sizeCell;
         //setLevelData(window.gd.cfgMain.width, window.gd.cfgMain.height);
-
-        // create background (picture) canvas:
         window.gs.create_imgbg()
-        // create main canvas:
         window.gs.create_maincanvas()
-
-
+        add_flash_overlay()
         // create temp canvas:
         var canvas = document.createElement('canvas');
         var ctxTmp = canvas.getContext('2d');
@@ -181,20 +217,16 @@ test_function();
         return true;
     }
 
-    function loadLevel(data) {
-    // Always reset state before loading a new level (for Try Again)
-    window.gs.endLevel(false); // Ensure previous animation loop and state are cleared
-    if (!data || !data.image) return;
-    var img = new Image();
-    img.onload = function() {
-        window.gs.applyLevel(img, data);
-    };
-    img.src = data.image;
-    window.stageData = window.stageData || {};
-    window.stageData.area = window.stageData.area || 0;
-    window.stageData.cum_area = window.stageData.cum_area || 0;
-    window.stageData.bonus = window.stageData.bonus || 'not set';
-}
+    window.loadLevel = function() {
+        // Always reset state before loading a new level (for Try Again)
+        window.gs.endLevel(false); // Ensure previous animation loop and state are cleared
+        window.ls.loadImgwithLevel()
+
+        window.stageData = window.stageData || {};
+        window.stageData.area = window.stageData.area || 0;
+        window.stageData.cum_area = window.stageData.cum_area || 0;
+        window.stageData.bonus = window.stageData.bonus || 'not set';
+    }
 
 window.update_status_bar = function(stage='update') {
     if(stage == 'init' || stage == 'quit'){
@@ -260,37 +292,21 @@ window.fn_spawn = function() {
     }
 
 window.fn_loop = function(now) {
-        var dt = window.gs.tLastFrame? (now - window.gs.tLastFrame) / 1000 : 0;
+        var dt = window.gs.lastFrameTime ? (now - window.gs.lastFrameTime) / 1000 : 0;
+        if (window.gs.isGamePaused) dt = 0;  // Force dt=0 when paused
+        
+        // Check for bonus expiration
+        if (window.gs.bonusEndTime && now >= window.gs.bonusEndTime) {
+            window.ls.speedEnemyReduce = window.gs.savedSpeedEnemyReduce;
+            window.gs.bonusEndTime = null;
+            window.gs.savedSpeedEnemyReduce = null;
+        }
+        
         window.gs.bCollision = window.gs.bConquer = false;
-        if (!window.gs.tLastFrame || window.fn_update(dt)) {
+        if (window.fn_update(dt)) {
             window.render();
-            window.gs.tLastFrame = now;
+            window.gs.lastFrameTime = now;
         }
-        if (window.gs.bCollision) {
-            window.fn_lock();
-            window.afterFault();
-            return;
-        }
-        if (window.gs.bConquer) {
-            window.gs.bConquer = false;
-            window.gs.tLastFrame = 0;
-            const points_check = [[window.stageData.bonus.x, window.stageData.bonus.y ]];
-            const bonus_captured = window.cellset.conquer(points_check);
-            if (bonus_captured[0]){
-                window.stageData.bonus.active = false
-                console.log('----- Bonus conquered area, removed.')
-            }
-            // var data = buildLevelState();
-            var cleared = window.cellset.getConqueredRatio()
-            window.gs.bConquer = true;
-
-            window.fn_postConquer(cleared, window.ls.target_area)
-        }
-        else{
-            window.fn_updateTime();
-        }
-        window.gs.startLoop();
-    }
 
     // The set of available directions:
 window.var_dirset = {

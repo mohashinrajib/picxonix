@@ -47,7 +47,7 @@ export class Enemy {
             window.gs.clearCellArea(this.x, this.y);
         else
             window.gs.fillCellArea(this.type ? window.gd.cfgMain.colorBorder : window.gd.cfgMain.colorFill, this.x, this.y);
-q    }
+    }
 
     // current position:
     pos() {
