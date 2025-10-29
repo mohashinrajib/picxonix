@@ -17,7 +17,7 @@ export class BonusItem {
         const index = Math.floor(Math.random() * types.length);
         const type = bonus === 'random' ? types[index] : bonus;
         // Ensure bonus values array matches types length
-        const bonusValues = [5, 5, 3, 1, 3, 2];
+        const bonusValues = [5, 5, 7, 1, 3, 2];
         const bonusValue = bonus === 'random' ? bonusValues[index] : 5;
         return new BonusItem(x, y, type, bonusValue, true);
     }

@@ -61,11 +61,12 @@ export class Enemy {
         var xC = posCr[0], yC = posCr[1],
             vC = window.cellset.value(xC, yC), bC = !this.type ^ vC & window.CA_CLEAR;
         if (
-            bC &&
+            (!window.ls.ignoreCollisionBonus) &&
+            (bC &&
             (window.gd.cfgMain.collisionAdjacent
                 ? Math.abs(x - xC) <= 1 && Math.abs(y - yC) <= 1
                 : x === xC && y === yC) ||
-            (!this.type && this._isCollision(x, y, dir))
+            (!this.type && this._isCollision(x, y, dir)))
         ) {
             window.gs.bCollision = true;
         }
@@ -75,14 +76,15 @@ export class Enemy {
             var dirB = this._calcBounce(x, y, dir, xt, yt);
             if (dirB !== false) return this._calcPath(x, y, dist - n, dirB);
             if (
-                bC && (
+                (!window.ls.ignoreCollisionBonus) &&
+                (bC && (
                     window.gd.cfgMain.collisionAdjacent
                         ? Math.abs(xt - xC) <= 1 && Math.abs(yt - yC) <= 1
                         : xt === xC && yt === yC
                 ) ||
-                (!this.type && this._isCollision(xt, yt, dir))
+                (!this.type && this._isCollision(xt, yt, dir)))
             ) {
-                window.gs.bCollision = true;
+                window.gs.bCollision  = true;
             }
 
             if (!this.type && !window.cellset.isPosIn(xt, yt)) break;

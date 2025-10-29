@@ -31,7 +31,7 @@ export class Cursor {
                 this.dir = false; break;
             }
             x += vecX; y += vecY;
-            if (window.cellset.value(x, y) & window.CA_TRAIL) {
+            if ((window.cellset.value(x, y) & window.CA_TRAIL)) {
                 window.gs.bCollision = true; break;
             }
             var b = window.cellset.value(x, y) & window.CA_CLEAR;
@@ -45,7 +45,7 @@ export class Cursor {
         this.y = y;
         // console.log('Cursor',this.x, this.y)
         if (!bEnd) return;
-        if (window.cellset.getPreTrailCell() == window.cellset.index(x,y))
+        if ((window.cellset.getPreTrailCell() == window.cellset.index(x,y)))
             window.gs.bCollision = true;
         else {
             this.dir = this.onTrail = false;
@@ -69,7 +69,9 @@ export class Cursor {
                     window.gs.clearCellArea(this.x0, this.y0);
 
                 }else{
-                     window.gs.fillCellArea(window.gd.cfgMain.colorBorder, this.x0, this.y0);
+                    var opacity = (window.ls && window.ls.ignoreCollisionBonus)? 0.5 :1
+                    window.gs.fillCellArea(window.gd.cfgMain.colorBorder, this.x0, this.y0, opacity);
+
                 }
 
             }

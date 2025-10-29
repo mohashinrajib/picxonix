@@ -45,7 +45,7 @@ export class GameDef {
 export class LevelState{
     constructor(iLevel) {
         this.iLevel = iLevel;
-        this.nBalls = 1;
+        this.nBalls = 5;
         this.nWarders = 1;
         this.target_area = 80;
         this.speedEnemy = 10;
@@ -121,15 +121,17 @@ export class GameState {
         );
     }
 
-    fillCellArea(color, x, y, w, h) {
+    fillCellArea(color, x, y, w, h, opacity=1) {
         const sizeCell = window.gd.cfgMain.sizeCell;
         if(!this){
             console.log('Context NOT FOUND')
         }
+        if (opacity != 1) this.ctxMain.globalAlpha = opacity;
         this.ctxMain.fillStyle = color;
         this.ctxMain.fillRect(
             (x+2)*sizeCell, (y+2)*sizeCell, (w || 1)* sizeCell, (h || 1)* sizeCell
         );
+        if (opacity != 1) this.ctxMain.globalAlpha = 1;
     }
 
     create_imgbg(){

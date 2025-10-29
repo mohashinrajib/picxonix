@@ -183,21 +183,24 @@ test_function();
         }
         imgBall = new Image();
         imgBall.src = ctxTmp.canvas.toDataURL();
-        function prepareSquare(colorOut, colorIn) {
+        function prepareSquare(colorOut, colorIn, opacity=1) {
             ctxTmp.clearRect(0, 0, sizeCell, sizeCell);
+            ctxTmp.globalAlpha = opacity;
             ctxTmp.fillStyle = colorOut;
             ctxTmp.fillRect(0, 0, sizeCell, sizeCell);
             if (colorIn) {
-                ctxTmp.fillStyle = colorIn;
-                ctxTmp.fillRect(q, q, sizeCell - r, sizeCell - r);
+            ctxTmp.fillStyle = colorIn;
+            ctxTmp.fillRect(q, q, sizeCell - r, sizeCell - r);
             }
+            ctxTmp.globalAlpha = 1;
         }
         // prepare warder image:
         prepareSquare(window.gd.cfgMain.colorWarder, window.gd.cfgMain.colorWarderIn);
         imgWarder = new Image();
         imgWarder.src = ctxTmp.canvas.toDataURL();
         // prepare cursor image:
-        prepareSquare(window.gd.cfgMain.colorCursor, window.gd.cfgMain.colorCursorIn);
+        var opacity = window.ls? (window.ls.ignoreCollisionBonus? 0.5 : 1) : 1
+        prepareSquare(window.gd.cfgMain.colorCursor, window.gd.cfgMain.colorCursorIn, opacity);
         imgCursor = new Image();
         imgCursor.src = ctxTmp.canvas.toDataURL();
         window.var_imgCursor = imgCursor
