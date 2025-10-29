@@ -19,12 +19,7 @@ export function test_function(){
 test_function();
 
 (function() {
-    // Use performance.now() for consistent high-resolution timestamps
-    var getNow = (typeof performance !== 'undefined' && performance.now) 
-        ? performance.now.bind(performance)
-        : Date.now.bind(Date);
-    
-    var lastTime = 0;
+    var tLast = 0;
     var vendors = ['webkit', 'moz'];
     for(var i = 0; i < vendors.length && !window.requestAnimationFrame; ++i) {
         var v = vendors[i];
@@ -33,13 +28,11 @@ test_function();
             window[v+'CancelRequestAnimationFrame'];
     }
     if (!window.requestAnimationFrame)
-        window.requestAnimationFrame = function(callback) {
-            var currentTime = getNow();
-            var timeToCall = Math.max(0, 16 - (currentTime - lastTime)); // ~60fps
-            var id = setTimeout(function() { 
-                callback(currentTime + timeToCall);
-            }, timeToCall);
-            lastTime = currentTime + timeToCall;
+        window.requestAnimationFrame = function(callback, element) {
+            var tNow = Date.now();
+            var dt = Math.max(0, 17 - tNow + tLast);
+            var id = setTimeout(function() { callback(tNow + dt); }, dt);
+            tLast = tNow + dt;
             return id;
         };
     if (!window.cancelAnimationFrame)
@@ -73,9 +66,6 @@ test_function();
                 break;
             case 'newgame':
                 newGameInit(v2);
-                break;
-            case 'play': // set playing mode
-                setPlayMode(v2);
                 break;
             case 'cursorDir': // set the cursor movement direction
                 typeof v2 == 'string'? window.gs.setDir(v2) : window.gs.setDirToward(v2);
@@ -292,21 +282,43 @@ window.fn_spawn = function() {
     }
 
 window.fn_loop = function(now) {
-        var dt = window.gs.lastFrameTime ? (now - window.gs.lastFrameTime) / 1000 : 0;
-        if (window.gs.isGamePaused) dt = 0;  // Force dt=0 when paused
-        
-        // Check for bonus expiration
-        if (window.gs.bonusEndTime && now >= window.gs.bonusEndTime) {
-            window.ls.speedEnemyReduce = window.gs.savedSpeedEnemyReduce;
-            window.gs.bonusEndTime = null;
-            window.gs.savedSpeedEnemyReduce = null;
-        }
-        
+        var dt = window.gs.tLastFrame? (now - window.gs.tLastFrame) / 1000 : 0;
+        console.log(window.gs.tLastFrame , dt)
         window.gs.bCollision = window.gs.bConquer = false;
-        if (window.fn_update(dt)) {
-            window.render();
-            window.gs.lastFrameTime = now;
+
+        var need_render = !window.gs.tLastFrame || window.fn_update(dt) && window.gs.bPlay
+        var need_timeUpdate = !window.gs.tLastFrame || window.gs.bPlay
+        if (need_render)
+            {
+                window.render();
+                console.log('---------------------------------------------------------rendered')
+            }
+        if(need_timeUpdate) window.gs.tLastFrame = now;
+        if (window.gs.bCollision) {
+            window.fn_lock();
+            window.afterFault();
+            return;
         }
+        if (window.gs.bConquer) {
+            window.gs.bConquer = false;
+            window.gs.tLastFrame = 0;
+            const points_check = [[window.stageData.bonus.x, window.stageData.bonus.y ]];
+            const bonus_captured = window.cellset.conquer(points_check);
+            if (bonus_captured[0]){
+                window.stageData.bonus.active = false
+                console.log('----- Bonus conquered area, removed.')
+            }
+            // var data = buildLevelState();
+            var cleared = window.cellset.getConqueredRatio()
+            window.gs.bConquer = true;
+
+            window.fn_postConquer(cleared, window.ls.target_area)
+        }
+        else{
+            window.fn_updateTime();
+        }
+        window.gs.startLoop();
+    }
 
     // The set of available directions:
 window.var_dirset = {

@@ -9,7 +9,7 @@ export class BonusItem {
         this.image = 'none';
     }
 
-
+    static alwaysBonus= true;
     static random(minX = 0, minY = 0, maxX = 600, maxY = 400, bonus = 'random') {
         const types = ['speed', 'slow', 'sneaky', 'killward', 'life', 'freez'];
         const x = Math.floor(Math.random() * (maxX - minX)) + minX;
@@ -17,7 +17,7 @@ export class BonusItem {
         const index = Math.floor(Math.random() * types.length);
         const type = bonus === 'random' ? types[index] : bonus;
         // Ensure bonus values array matches types length
-        const bonusValues = [5, 5, 1, 1, 3, 5];
+        const bonusValues = [5, 5, 3, 1, 3, 2];
         const bonusValue = bonus === 'random' ? bonusValues[index] : 5;
         return new BonusItem(x, y, type, bonusValue, true);
     }
@@ -103,6 +103,10 @@ export class BonusItem {
         } else if (this.type === 'sneaky') {
             if (ls) ls.ignoreCollisionBonus = true;
             bonus_text = 'Bonus - Sneaky';
+              // # after 3 second return to same
+            setTimeout(() => {
+                ls.ignoreCollisionBonus = false;
+            }, this.bonusValue*1000);
         } else if (this.type === 'killward') {
             if (ls) {
                 ls.nWarders = Math.max(0, (ls.nWarders || 0) - 1);
@@ -118,14 +122,12 @@ export class BonusItem {
             bonus_text = 'Bonus - Extra Life';
         }else if (this.type === 'freez'){
             var saved_speedEnemyReduce = ls.speedEnemyReduce;
-            ls.speedEnemyReduce = ls.speedEnemy;
+            ls.speedEnemyReduce = ls.speedEnemy
             bonus_text = 'Bonus - Frozen';
-            
-            // Store bonus end time in game state
-            window.gs.bonusEndTime = window.gs.lastFrameTime + (this.bonusValue * 1000);
-            window.gs.savedSpeedEnemyReduce = saved_speedEnemyReduce;
-            
-            // Check for bonus expiration will be handled in the main game loop
+            // # after 5 second return to same
+            setTimeout(() => {
+                ls.speedEnemyReduce = saved_speedEnemyReduce;
+            }, this.bonusValue*1000);
         }
         $('#banner').html(bonus_text);
         // return to banner after 2 sec

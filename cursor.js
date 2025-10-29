@@ -43,7 +43,7 @@ export class Cursor {
         }
         this.x = x;
         this.y = y;
-        console.log('Cursor',this.x, this.y)
+        // console.log('Cursor',this.x, this.y)
         if (!bEnd) return;
         if (window.cellset.getPreTrailCell() == window.cellset.index(x,y))
             window.gs.bCollision = true;

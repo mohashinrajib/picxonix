@@ -1,6 +1,6 @@
 import { GameDef, GameState, LevelState } from './gamestate.js';
 import * as pix from './picxonix.js'
-
+import { BonusItem } from './bonus.js';
 $(function() {
     var elCanvas = $('#graphics');
     // Cache commonly used DOM elements
@@ -59,7 +59,7 @@ $(function() {
         if (key == 27) {
             if (window.gs.bStarted) {
                 window.gs.bPlay = !window.gs.bPlay;
-                picxonix('play', window.gs.bPlay);
+                window.gs.setPlayMode(window.gs.bPlay)
             }
             return;
         }
@@ -115,11 +115,11 @@ $(function() {
             return;
         }
 
-        var img = window.ls.get_image(function() {$playBtn.prop('disabled', false);},
-                function() {
-                    console.error('Failed to load image:', 'pics/' + window.gs.iLevel);
-                    $playBtn.prop('disabled', false); // Enable button even if image fails
-            })
+        // var img = window.ls.get_image(function() {$playBtn.prop('disabled', false);},
+        //         function() {
+        //             console.error('Failed to load image:', 'pics/' + window.gs.iLevel);
+        //             $playBtn.prop('disabled', false); // Enable button even if image fails
+        //     })
 
         // )
         // if (img.complete) {
@@ -185,6 +185,10 @@ $(function() {
             var i;
             for (i = 0; i < window.ls.nBalls; i++) window.ls.aBalls[i].update(distEnemy);
             for (i = 0; i < window.ls.nWarders; i++) window.ls.aWarders[i].update(distEnemy);
+            if(!window.stageData.bonus.active)
+                {
+                    if(window.stageData.cum_area<50) window.stageData.bonus = BonusItem.random(5, 5, window.cellset.nW-5, window.cellset.nH-5, 'random')
+                }
             return true;
         }
 
@@ -309,3 +313,8 @@ $(function() {
     }
 
 });
+
+
+
+//TODO
+// When game paused duting freez, the freez counter keeps ticking and ends in 3 sec even if paused.

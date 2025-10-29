@@ -47,7 +47,7 @@ export class LevelState{
         this.iLevel = iLevel;
         this.nBalls = 1;
         this.nWarders = 1;
-        this.target_area = 50;
+        this.target_area = 80;
         this.speedEnemy = 10;
         this.speedEnemyReduce = 0;
         this.ignoreCollisionBonus = false;
@@ -220,7 +220,7 @@ export class GameState {
         aPos = window.cellset.placeWarders(window.ls.nWarders);
         for (i = 0; i < window.ls.nWarders; i++)
             window.ls.aWarders.push(new Enemy(aPos[i][0], aPos[i][1], true, 45));
-        window.stageData.bonus = BonusItem.random(5, 5, window.cellset.nW-5, window.cellset.nH-5, 'freez')
+        window.stageData.bonus = BonusItem.random(5, 5, window.cellset.nW-5, window.cellset.nH-5, 'random')
         window.gs.tLevel = Date.now();
         window.gs.tLastFrame = 0;
         this.startLoop();
@@ -284,7 +284,7 @@ export class GameState {
 
     setPlayMode(bOn) {
         if (bOn ^ !window.gs.tLastFrame) return;
-        window.gs.tLastFrame? endLoop() : this.startLoop();
+        window.gs.tLastFrame? this.endLoop() : this.startLoop();
     }
 
     setDir(key) {
